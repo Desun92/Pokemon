@@ -5,9 +5,9 @@ import retrofit2.http.GET;
 
 public interface IPokemonApiService {
 
-    @GET("pokemon/?limit=50")
+    @GET("pokemon/?limit=800")
     Call<PokemonFetchResults> getPokemons();
 
-    /*@GET("pokemon/{id}")
-    Call<PokemonFetchResults> getDetails();*/
+    @GET("pokemon/{id}")
+    Call<PokemonFetchResults> getDetails();
 }

@@ -149,18 +149,17 @@ public class ItemListFragment extends Fragment {
                     @Override
                     public void onClick(View view) {
 
-                        int index = (int) view.getTag();
+                        Integer index = (int) view.getTag();
 
                         Pokemon item = mValues.get(index);
                         Bundle arguments = new Bundle();
-                        arguments.putInt(ItemDetailFragment.ARG_ITEM_ID, index + 1);
+                        arguments.putInt(ItemDetailFragment.ARG_ITEM_ID.toString(), index+1);
                         arguments.putString(ItemDetailFragment.ARG_ITEM_NAME,
                                 item.getName());
                         arguments.putString(ItemDetailFragment.ARG_DESCRIPTION,
                                 item.getDescription());
 
-                        Navigation.findNavController(view).navigate(R.id.show_item_detail,
-                                arguments);
+                        Navigation.findNavController(view).navigate(R.id.show_item_detail, arguments);
                     }
                 };
 

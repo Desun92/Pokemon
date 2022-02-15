@@ -34,7 +34,7 @@ public class ItemDetailFragment extends Fragment {
 
     public static final String ARG_ITEM_NAME = "item_name";
     public static final String ARG_DESCRIPTION = "item_description";
-    public static final String ARG_ITEM_ID = "item_id";
+    public static final Integer ARG_ITEM_ID=0;
 
     private Integer mItemId;
     private String mItemName;
@@ -59,8 +59,8 @@ public class ItemDetailFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (getArguments().containsKey(ARG_ITEM_ID)) {
-            mItemId = getArguments().getInt(ARG_ITEM_ID);
+        if (getArguments().containsKey(ARG_ITEM_ID.toString())) {
+            mItemId = getArguments().getInt(ARG_ITEM_ID.toString());
             mItemName = getArguments().getString(ARG_ITEM_NAME);
             mItemDescrption = getArguments().getString(ARG_DESCRIPTION);
         }
