@@ -1,4 +1,4 @@
-package com.grupo2.pokemon.dao.vo;
+package com.grupo2.pokemon;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;

@@ -1,8 +1,5 @@
 package com.grupo2.pokemon;
 
-import android.content.ClipData;
-import android.content.ClipDescription;
-import android.os.Build;
 import android.os.Bundle;
 
 import androidx.core.view.ViewCompat;
@@ -10,6 +7,7 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,12 +15,18 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.GsonBuilder;
 import com.grupo2.pokemon.databinding.FragmentItemListBinding;
 import com.grupo2.pokemon.databinding.ItemListContentBinding;
 
-import com.grupo2.pokemon.placeholder.PlaceholderContent;
-
+import java.util.ArrayList;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * A fragment representing a list of Items. This fragment
@@ -61,12 +65,13 @@ public class ItemListFragment extends Fragment {
 
     private FragmentItemListBinding binding;
 
+
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         binding = FragmentItemListBinding.inflate(inflater, container, false);
         return binding.getRoot();
-
     }
 
     @Override
@@ -81,17 +86,44 @@ public class ItemListFragment extends Fragment {
         // layout configuration (layout, layout-sw600dp)
         View itemDetailFragmentContainer = view.findViewById(R.id.item_detail_nav_container);
 
-        setupRecyclerView(recyclerView, itemDetailFragmentContainer);
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://pokeapi.co/api/v2/")
+                .addConverterFactory(GsonConverterFactory.create(
+                        new GsonBuilder().serializeNulls().create()
+                ))
+                .build();
+        IPokemonApiService pokemonApiService = retrofit.create(IPokemonApiService.class);
+        Call<PokemonFetchResults> call = pokemonApiService.getPokemons();
+
+        call.enqueue(new Callback<PokemonFetchResults>() {
+            @Override
+            public void onResponse(Call<PokemonFetchResults> call,
+                                   Response<PokemonFetchResults> response) {
+                if (response.isSuccessful()) {
+                    ArrayList<Pokemon> pokemonList = response.body().getResults();
+                    View recyclerView = getActivity().findViewById(R.id.item_list);
+                    assert recyclerView != null;
+                    setupRecyclerView((RecyclerView) recyclerView,itemDetailFragmentContainer, pokemonList);
+                } else {
+                    Log.d("Error", "Something happened");
+                    return;
+                }
+            }
+            @Override
+            public void onFailure(Call call, Throwable t) {
+                Log.d("Error", t.toString());
+            }
+        });
     }
 
     private void setupRecyclerView(
             RecyclerView recyclerView,
-            View itemDetailFragmentContainer
+            View itemDetailFragmentContainer,
+            ArrayList<Pokemon> pokemonList
     ) {
 
         recyclerView.setAdapter(new SimpleItemRecyclerViewAdapter(
-                PlaceholderContent.ITEMS,
-                itemDetailFragmentContainer
+                pokemonList,itemDetailFragmentContainer
         ));
     }
 
@@ -101,17 +133,36 @@ public class ItemListFragment extends Fragment {
         binding = null;
     }
 
-    public static class SimpleItemRecyclerViewAdapter
-            extends RecyclerView.Adapter<SimpleItemRecyclerViewAdapter.ViewHolder> {
+    public static class SimpleItemRecyclerViewAdapter extends RecyclerView.Adapter<SimpleItemRecyclerViewAdapter.ViewHolder> {
 
-        private final List<PlaceholderContent.PlaceholderItem> mValues;
+        private final List<Pokemon> mValues;
         private final View mItemDetailFragmentContainer;
 
-        SimpleItemRecyclerViewAdapter(List<PlaceholderContent.PlaceholderItem> items,
+        SimpleItemRecyclerViewAdapter(List<Pokemon> items,
                                       View itemDetailFragmentContainer) {
             mValues = items;
             mItemDetailFragmentContainer = itemDetailFragmentContainer;
         }
+
+        private final View.OnClickListener mOnClickListener = new
+                View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+
+                        int index = (int) view.getTag();
+
+                        Pokemon item = mValues.get(index);
+                        Bundle arguments = new Bundle();
+                        arguments.putInt(ItemDetailFragment.ARG_ITEM_ID, index + 1);
+                        arguments.putString(ItemDetailFragment.ARG_ITEM_NAME,
+                                item.getName());
+                        arguments.putString(ItemDetailFragment.ARG_DESCRIPTION,
+                                item.getDescription());
+
+                        Navigation.findNavController(view).navigate(R.id.show_item_detail,
+                                arguments);
+                    }
+                };
 
         @Override
         public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -124,13 +175,16 @@ public class ItemListFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(final ViewHolder holder, int position) {
-            holder.mIdView.setText(mValues.get(position).id);
-            holder.mContentView.setText(mValues.get(position).content);
 
-            holder.itemView.setTag(mValues.get(position));
-            holder.itemView.setOnClickListener(itemView -> {
-                PlaceholderContent.PlaceholderItem item =
-                        (PlaceholderContent.PlaceholderItem) itemView.getTag();
+            holder.mIdView.setText(Integer.toString(position));
+            holder.mContentView.setText(mValues.get(position).getName());
+
+            holder.itemView.setTag(position);
+            holder.itemView.setOnClickListener(mOnClickListener);
+
+            /*holder.itemView.setOnClickListener(itemView -> {
+                Pokemon item =
+                        (Pokemon) itemView.getTag();
                 Bundle arguments = new Bundle();
                 arguments.putString(ItemDetailFragment.ARG_ITEM_ID, item.id);
                 if (mItemDetailFragmentContainer != null) {
@@ -139,51 +193,52 @@ public class ItemListFragment extends Fragment {
                 } else {
                     Navigation.findNavController(itemView).navigate(R.id.show_item_detail, arguments);
                 }
-            });
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                /*
-                 * Context click listener to handle Right click events
-                 * from mice and trackpad input to provide a more native
-                 * experience on larger screen devices
-                 */
-                holder.itemView.setOnContextClickListener(v -> {
-                    PlaceholderContent.PlaceholderItem item =
-                            (PlaceholderContent.PlaceholderItem) holder.itemView.getTag();
-                    Toast.makeText(
-                            holder.itemView.getContext(),
-                            "Context click of item " + item.id,
-                            Toast.LENGTH_LONG
-                    ).show();
-                    return true;
-                });
-            }
-            holder.itemView.setOnLongClickListener(v -> {
-                // Setting the item id as the clip data so that the drop target is able to
-                // identify the id of the content
-                ClipData.Item clipItem = new ClipData.Item(mValues.get(position).id);
-                ClipData dragData = new ClipData(
-                        ((PlaceholderContent.PlaceholderItem) v.getTag()).content,
-                        new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN},
-                        clipItem
-                );
+            });*/
 
-                if (Build.VERSION.SDK_INT >= 24) {
-                    v.startDragAndDrop(
-                            dragData,
-                            new View.DragShadowBuilder(v),
-                            null,
-                            0
-                    );
-                } else {
-                    v.startDrag(
-                            dragData,
-                            new View.DragShadowBuilder(v),
-                            null,
-                            0
-                    );
-                }
-                return true;
-            });
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//                /*
+//                 * Context click listener to handle Right click events
+//                 * from mice and trackpad input to provide a more native
+//                 * experience on larger screen devices
+//                 */
+//                holder.itemView.setOnContextClickListener(v -> {
+//                    Pokemon item =
+//                            (Pokemon) holder.itemView.getTag();
+//                    Toast.makeText(
+//                            holder.itemView.getContext(),
+//                            "Context click of item " + item.id,
+//                            Toast.LENGTH_LONG
+//                    ).show();
+//                    return true;
+//                });
+//            }
+//            holder.itemView.setOnLongClickListener(v -> {
+//                // Setting the item id as the clip data so that the drop target is able to
+//                // identify the id of the content
+//                ClipData.Item clipItem = new ClipData.Item(mValues.get(position).id);
+//                ClipData dragData = new ClipData(
+//                        ((Pokemon) v.getTag()).content,
+//                        new String[]{ClipDescription.MIMETYPE_TEXT_PLAIN},
+//                        clipItem
+//                );
+//
+//                if (Build.VERSION.SDK_INT >= 24) {
+//                    v.startDragAndDrop(
+//                            dragData,
+//                            new View.DragShadowBuilder(v),
+//                            null,
+//                            0
+//                    );
+//                } else {
+//                    v.startDrag(
+//                            dragData,
+//                            new View.DragShadowBuilder(v),
+//                            null,
+//                            0
+//                    );
+//                }
+//                return true;
+//            });
         }
 
         @Override
@@ -202,5 +257,6 @@ public class ItemListFragment extends Fragment {
             }
 
         }
+
     }
 }
